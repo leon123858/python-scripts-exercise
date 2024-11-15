@@ -1,13 +1,21 @@
+# Makefile
+# 設定 Python 執行檔
+PYTHON = python
+# 測試目錄
+TEST_DIR = tests
+# install tool
+PKG_MANAGE = pip
+
 all:
 	make type
 	make format
 	make start
 
 test:
-	python -m unittest discover -s utils -p '*_test.py'
+	$(PYTHON) -m unittest discover -s $(TEST_DIR) -p '*_test.py'
 
 start:
-	python main.py
+	$(PYTHON) main.py
 
 type:
 	mypy .
@@ -15,10 +23,10 @@ type:
 format:
 	black .
 	isort .
-	flake8 --extend-exclude .venv,dist
+	flake8 --ignore=E501 --extend-exclude .venv,dist
 
 freeze:
-	pip freeze > requirements.txt
+	$(PKG_MANAGE) freeze > requirements.txt
 
 install:
-	pip install -r requirements.txt
+	$(PKG_MANAGE) install -r requirements.txt

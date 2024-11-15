@@ -1,6 +1,8 @@
 import datetime
 import re
 
+import pandas as pd
+
 
 def read_txt_file(file_path: str) -> str:
     """讀取指定路徑的 txt 檔案內容。
@@ -34,6 +36,22 @@ def extract_soe_sections(content: str) -> list[str]:
     matches = re.findall(pattern, text, re.DOTALL)
 
     return matches
+
+
+def extract_col_sections(content: str) -> list[str]:
+    # 使用正則表達式提取 CSV 欄位資訊
+    pattern = r"Date__\(UT\)__HR:MN,([\s\S]*?)\n"
+    match = re.search(pattern, content)
+    # 如果找到匹配的內容
+    if match:
+        csv_columns = match.group(0).strip().split(",")
+        # 清理欄位名稱，去除空白和多餘的逗號
+        csv_columns = [col.strip() for col in csv_columns]
+        # remove final empty
+        assert csv_columns.pop() == ""
+        return csv_columns
+    else:
+        return []
 
 
 def convert_date(date_string: str) -> datetime.datetime:
@@ -72,9 +90,30 @@ def convert_date(date_string: str) -> datetime.datetime:
     return dt
 
 
-def data_to_string_array(data: str) -> list[str]:
-    data_list = data.split("\n")
-    new_list = [item for item in data_list if item]
+def data_to_string_array(data: str) -> list[list[str]]:
+    data_list = [item for item in data.split("\n") if item]
+    new_list: list[list[str]] = []
+    for row in data_list:
+        items = [item.strip() for item in row.split(",")]
+        items.pop()
+        new_list.append(items)
+
     return new_list
 
-# def data_item_str_to_dic(item:str) -> dict[str]:
+
+def generate_pandas(col: list[str], data: list[list[str]]) -> pd.DataFrame:
+    df = pd.DataFrame(data, columns=col)
+    return df
+
+
+class HorizonsResultsReader:
+    def __init__(self, file_path: str):
+        self.path = file_path
+
+    def read(self) -> pd.DataFrame:
+        raw_data = read_txt_file(self.path)
+        raw_data_string = extract_soe_sections(raw_data).pop()
+        data_col = extract_col_sections(raw_data)
+        data_list = data_to_string_array(raw_data_string)
+        pdFrames = generate_pandas(data_col, data_list)
+        return pdFrames
