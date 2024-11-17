@@ -80,8 +80,8 @@ def convert_date(date_string: str) -> datetime.datetime:
     }
 
     date_parts = date_string.split()
-    assert len(date_parts) == 4
-    time = date_parts[1]
+    assert len(date_parts) == 2
+    time = date_parts[0]
     year, month, day = time.split("-")
 
     # 將日期字串轉換為 datetime 對象
@@ -108,6 +108,7 @@ def generate_pandas(col: list[str], data: list[list[str]]) -> pd.DataFrame:
 
 class HorizonsResultsReader:
     def __init__(self, file_path: str):
+        self.data = pd.DataFrame()
         self.path = file_path
 
     def read(self) -> pd.DataFrame:
@@ -116,4 +117,5 @@ class HorizonsResultsReader:
         data_col = extract_col_sections(raw_data)
         data_list = data_to_string_array(raw_data_string)
         pdFrames = generate_pandas(data_col, data_list)
+        self.data = pdFrames
         return pdFrames

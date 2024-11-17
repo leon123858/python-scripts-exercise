@@ -18,7 +18,7 @@ start:
 	$(PYTHON) main.py
 
 type:
-	mypy .
+	mypy --ignore-missing-imports .
 
 format:
 	black .
