@@ -2,11 +2,6 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from astropy import units as u
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord
-from astropy.time import Time
-
-from utils.string_handle import convert_date
 
 
 class SkyObserverConfig:
@@ -16,35 +11,17 @@ class SkyObserverConfig:
 
 
 class SkyObserver:
-    def __init__(self, data: pd.DataFrame, config: SkyObserverConfig):
+    def __init__(self, data: pd.DataFrame):
         self.data = data
-        self.config = config
-        # init
-        self.location = EarthLocation(
-            lat=config.lat * u.deg, lon=config.lon * u.deg, height=0 * u.m
-        )
 
     def observe(self, start_index=0, num=1000):
         altitudes: list[float] = []
         azimuths: list[float] = []
         end_index = start_index + num
         for index, row in self.data.loc[start_index:end_index].iterrows():
-            time_str = str(row["Date__(UT)__HR:MN"])
-            date = convert_date(time_str)
-            time = Time(date)
-            # 將字串轉換為 SkyCoord 物件
-            star_coord = SkyCoord(
-                ra=row["R.A._(ICRF)"],
-                dec=row["DEC__(ICRF)"],
-                unit=(u.hourangle, u.deg),
-                frame="icrs",
-            )
-            # 計算星星在特定時間的 Alt/Az
-            altaz_frame = AltAz(obstime=time, location=self.location)
-            star_altaz = star_coord.transform_to(altaz_frame)
             # 獲取 Altitude 和 Azimuth
-            altitudes.append(star_altaz.alt.deg)  # 高度 (度)
-            azimuths.append(star_altaz.az.deg)  # 方位角 (度)
+            altitudes.append(float(row["Elev_(a-app)"]))  # 高度 (度)
+            azimuths.append(float(row["Azi_(a-app)"]))  # 方位角 (度)
         return np.array(altitudes, dtype=float), np.array(azimuths, dtype=float)
 
 

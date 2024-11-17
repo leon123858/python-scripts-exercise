@@ -1,15 +1,15 @@
-from services.sky_observer import SkyObserver, SkyObserverConfig, draw_polar
+from services.sky_observer import SkyObserver, draw_polar
 from utils.string_handle import HorizonsResultsReader
 
 
 def main():
     # data from `https://ssd.jpl.nasa.gov/horizons/app.html#/`
-    ret = HorizonsResultsReader("./assets/horizons_results5.txt")
+    ret = HorizonsResultsReader("./assets/horizons_results9.txt")
     data = ret.read()
-    config = SkyObserverConfig(lat=25.0478, lon=121.5319)
-    obs = SkyObserver(data, config)
-    altitudes, azimuths = obs.observe(start_index=0, num=1000)
+    obs = SkyObserver(data)
+    altitudes, azimuths = obs.observe(start_index=0, num=2000)
     draw_polar(azimuths, altitudes)
+    # note: 逆行現象是跟星座的相對位置做比較!
 
 
 if __name__ == "__main__":

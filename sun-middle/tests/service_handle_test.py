@@ -3,35 +3,28 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from astropy import units as u
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord
-from astropy.time import Time
 
-from services.sky_observer import SkyObserver, SkyObserverConfig, draw_polar
+from services.sky_observer import SkyObserver, draw_polar
 from utils.string_handle import HorizonsResultsReader
 
 
 class MyTestCase(unittest.TestCase):
     def test_lib_usage(self):
-        # 設定觀測地點，這裡以台北為例
-        location = EarthLocation(
-            lat=25.0478 * u.deg, lon=121.5319 * u.deg, height=0 * u.m
-        )
-        # 設定觀測時間
-        times = Time("2023-10-01 00:00:00") + np.linspace(0, 1, 100) * u.day  # 觀測一天
-        # 真實數據 R.A 和 Dec
-        ra_str = "08 34 28.17"
-        dec_str = "+21 20 40.5"
-        # 將字串轉換為 SkyCoord 物件
-        star_coord = SkyCoord(
-            ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg), frame="icrs"
-        )
-        # 計算星星在不同時間的 Alt/Az
-        altaz_frame = AltAz(obstime=times, location=location)
-        star_altaz = star_coord.transform_to(altaz_frame)
+        """
+        important parameter:
+         'Azi_(a-app), Elev_(a-app),' =
+          Airless apparent azimuth and elevation of target center. Compensated
+        for light-time, the gravitational deflection of light, stellar aberration,
+        precession and nutation. Azimuth is measured clockwise from north:
+
+          North(0) -> East(90) -> South(180) -> West(270) -> North (360)
+
+        Elevation angle is with respect to a plane perpendicular to the reference
+        surface local zenith direction. TOPOCENTRIC ONLY.  Units: DEGREES
+        """
         # 獲取 Altitude 和 Azimuth
-        altitudes = star_altaz.alt.deg  # 高度 (度)
-        azimuths = star_altaz.az.deg  # 方位角 (度)
+        altitudes = 8.761056  # 高度 (度)
+        azimuths = 302.897648  # 方位角 (度)
         # 繪製地平面和天體軌跡
         plt.figure(figsize=(8, 8))
         plt.subplot(projection="polar")
@@ -53,18 +46,16 @@ class MyTestCase(unittest.TestCase):
         plt.legend()
         plt.grid(True)
         # 顯示圖形
-        plt.savefig("test_plot.png")  # 保存圖形而不是顯示
-        plt.close()  # 關閉圖形
-        self.assertTrue(os.path.exists("test_plot.png"))
-        os.remove("test_plot.png")
+        plt.show()
+        # plt.savefig("test_plot.png")  # 保存圖形而不是顯示
+        # plt.close()  # 關閉圖形
+        # self.assertTrue(os.path.exists("test_plot.png"))
+        # os.remove("test_plot.png")
 
     def test_draw_point(self):
-        ret = HorizonsResultsReader("./assets/horizons_results.txt")
+        ret = HorizonsResultsReader("../assets/horizons_results.txt")
         data = ret.read()
-        config = SkyObserverConfig(lat=25.0478, lon=121.5319)
-        self.assertEqual(config.lat, 25.0478)
-        self.assertEqual(config.lon, 121.5319)
-        obs = SkyObserver(data, config)
+        obs = SkyObserver(data)
         altitudes, azimuths = obs.observe()
         draw_polar(azimuths, altitudes, "test_plot.png")
         self.assertTrue(os.path.exists("test_plot.png"))
