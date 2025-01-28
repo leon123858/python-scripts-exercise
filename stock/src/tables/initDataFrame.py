@@ -11,6 +11,7 @@ def get_stock_data(stock_id: str, start_year=None, start_month=None) -> pd.DataF
     stock_id (str): 股票代碼 (例如: '2330')
     """
     stock = twstock.Stock(stock_id)
+
     if start_year is not None and start_month is not None:
         stock.fetch_from(start_year, start_month)
     elif start_year is None and start_month is None:
