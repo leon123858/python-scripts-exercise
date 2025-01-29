@@ -7,8 +7,10 @@ import sys
 import twstock
 
 from src.diagram.kLine import draw_k_line, convert2k_line_diagram
-from src.events.event_star import get_event_star, MorningStar, Black3
+from src.events.event_star import get_event_star, Red3
 from src.tables.initDataFrame import get_stock_data
+from src.utils.revenue import get_revenue_by_date_offset
+
 
 def init():
     twstock.__update_codes()
@@ -18,7 +20,8 @@ def init():
 
 
 def main():
-    data = get_stock_data("8299")
+    print("hello")
+
 
 if __name__ == "__main__":
     print("---start---")

@@ -19,7 +19,7 @@ def get_stock_data(stock_id: str, start_year=None, start_month=None) -> pd.DataF
     else:
         raise ValueError("should set year and month same time or not")
 
-    return create_dataframe_from_lists(
+    df = create_dataframe_from_lists(
         stock.price,
         stock.high,
         stock.capacity,
@@ -43,3 +43,6 @@ def get_stock_data(stock_id: str, start_year=None, start_month=None) -> pd.DataF
             "turnover",
         ],
     )
+
+    df.index = stock.date
+    return df

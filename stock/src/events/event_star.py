@@ -81,6 +81,7 @@ class MorningStar(EventStarStrategy):
     def result(self):
         return self.events
 
+
 class Black3(EventStarStrategy):
     events: list[datetime] = []
     eventQueue: list[object] = []
@@ -94,17 +95,52 @@ class Black3(EventStarStrategy):
         self.eventQueue.append(item)
         if len(self.eventQueue) == 3:
             if (
-                    self.eventQueue[0]["is_down"] is True and self.eventQueue[1]["is_down"] is True and self.eventQueue[2]["is_down"] is True
+                self.eventQueue[0]["is_down"] is True
+                and self.eventQueue[1]["is_down"] is True
+                and self.eventQueue[2]["is_down"] is True
             ):
-                if self.eventQueue[0]["K_size"] < self.eventQueue[1]["K_size"] < self.eventQueue[2]["K_size"]:
-                        self.events.append(index)
+                if (
+                    self.eventQueue[0]["K_size"]
+                    < self.eventQueue[1]["K_size"]
+                    < self.eventQueue[2]["K_size"]
+                ):
+                    self.events.append(index)
             self.eventQueue = self.eventQueue[1:]
 
     def result(self):
         return self.events
 
+
+class Red3(EventStarStrategy):
+    events: list[datetime] = []
+    eventQueue: list[object] = []
+
+    def analysis(self, data: pd.DataFrame) -> pd.DataFrame:
+        data["K_size"] = abs(data["close"] - data["open"])
+        data["is_up"] = data["close"] > data["open"]
+        return data
+
+    def step(self, index, item):
+        self.eventQueue.append(item)
+        if len(self.eventQueue) == 3:
+            if (
+                self.eventQueue[0]["is_up"] is True
+                and self.eventQueue[1]["is_up"] is True
+                and self.eventQueue[2]["is_up"] is True
+            ):
+                if (
+                    self.eventQueue[0]["K_size"]
+                    < self.eventQueue[1]["K_size"]
+                    < self.eventQueue[2]["K_size"]
+                ):
+                    self.events.append(index)
+            self.eventQueue = self.eventQueue[1:]
+
+    def result(self):
+        return self.events
+
+
 def get_event_star(data: pd.DataFrame, strategy: EventStarStrategy):
-    data.index = data["date"]
     data = strategy.analysis(data)
     for index, row in data.iterrows():
         strategy.step(index, row)
