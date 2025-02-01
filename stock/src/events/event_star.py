@@ -1,21 +1,8 @@
 from datetime import datetime
 
 import pandas as pd
-from abc import ABC, abstractmethod
 
-
-class EventStarStrategy(ABC):
-    @abstractmethod
-    def analysis(self, data: pd.DataFrame):
-        pass
-
-    @abstractmethod
-    def step(self, index, item):
-        pass
-
-    @abstractmethod
-    def result(self):
-        pass
+from src.events.events import EventStarStrategy
 
 
 class EveningStar(EventStarStrategy):
@@ -138,10 +125,3 @@ class Red3(EventStarStrategy):
 
     def result(self):
         return self.events
-
-
-def get_event_star(data: pd.DataFrame, strategy: EventStarStrategy):
-    data = strategy.analysis(data)
-    for index, row in data.iterrows():
-        strategy.step(index, row)
-    return strategy.result()

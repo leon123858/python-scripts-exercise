@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import mplfinance as mpf
 import pandas as pd
 
@@ -11,7 +10,7 @@ def draw_k_line(data: pd.DataFrame):
         raise ValueError("miss table col")
     # 繪製 K 線圖
     mpf.plot(data, type="candle", style="yahoo", volume=True)
-    plt.show()
+    mpf.show()
 
 
 def convert2k_line_diagram(data: pd.DataFrame) -> pd.DataFrame:

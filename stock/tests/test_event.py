@@ -1,7 +1,10 @@
+import numpy as np
 import pandas as pd
 from pandas import Timestamp
 
-from src.events.event_star import EveningStar, Black3, get_event_star, Red3
+from src.events.event_star import EveningStar, Black3, Red3
+from src.events.events import get_event_star
+from src.events.lines import RSILine
 from src.utils.revenue import get_revenue_by_date_offset
 
 
@@ -94,3 +97,55 @@ def test_get_event_revenue():
         ret.append(get_revenue_by_date_offset(data, events, i))
     assert ret[0] == ((14.0 + 14.0) / (10.0 + 14.0))
     assert ret[1] == ((14.0 + 14.0) / (12.0 + 14.0))
+
+
+def test_get_line():
+    strategy = RSILine()
+    strategy.window_size = 14
+    strategy.events = pd.DataFrame(
+        columns=["is_up", "gain", "loss", "avg_gain", "avg_loss", "rs", "rsi", "size"]
+    )
+    strategy.ret = []
+
+    data = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 11, 10, 12, 13, 12, 11, 13, 14, 13, 12, 14, 15],
+            "close": [11, 12, 11, 10, 12, 13, 14, 11, 12, 14, 15, 14, 13, 15, 16],
+        }
+    )
+    result = strategy.analysis(data)
+
+    assert len(result) == len(data)
+
+    # 檢查 RSI 值 (需要計算期望值)
+    expected_rsi = pd.Series(
+        [
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            80.0,
+            80.0,
+        ]
+    )  # 示例，需要根據實際資料計算
+    expected_rsi.name = "rsi"
+    pd.testing.assert_series_equal(
+        strategy.events["rsi"], expected_rsi, check_dtype=False
+    )
+
+    strategy.analysis(data)
+
+    for index, row in strategy.events.iterrows():
+        strategy.step(index, row)
+
+    result = strategy.result()
+    assert len(result) == len(data)
