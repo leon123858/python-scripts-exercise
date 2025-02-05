@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="start" type="CompoundRunConfigurationType">
-    <toRun name="check" type="MAKEFILE_TARGET_RUN_CONFIGURATION" />
+    <toRun name="check" type="PowerShellRunType" />
     <toRun name="main" type="PythonConfigurationType" />
     <method v="2" />
   </configuration>
