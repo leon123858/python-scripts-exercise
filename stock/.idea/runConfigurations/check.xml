@@ -1,6 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="check" type="PowerShellRunType" factoryName="PowerShell" scriptUrl="C:\Users\a0970\Desktop\python-scripts-exercise\stock\format.ps1" executablePath="$PROJECT_DIR$/../../../../../WINDOWS/System32/WindowsPowerShell/v1.0/powershell.exe">
-    <envs />
-    <method v="2" />
-  </configuration>
-</component>

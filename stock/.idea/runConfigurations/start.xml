@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="start" type="CompoundRunConfigurationType">
-    <toRun name="check" type="PowerShellRunType" />
-    <toRun name="main" type="PythonConfigurationType" />
-    <method v="2" />
-  </configuration>
-</component>
