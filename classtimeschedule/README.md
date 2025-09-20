@@ -19,3 +19,12 @@
 ### 彈性設定
 
 本腳本的設計具有高度彈性，上述所有常數（如週數、時段數、時段容量、學生每週上課次數）皆可在程式碼的設定區塊中自由調整，以符合不同課程的具體需求。歡迎使用者根據實際情況修改利用。
+
+## Quick Start
+
+```bash
+uv venv
+source .venv/bin/activate
+uv sync
+jupyter notebook main.ipynb
+```
