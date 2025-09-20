@@ -1,0 +1,4 @@
+.venv
+.idea
+
+week_*_output.csv
