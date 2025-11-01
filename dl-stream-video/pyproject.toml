@@ -1,0 +1,9 @@
+[project]
+name = "dl-stream-video"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "notebook>=7.4.7",
+    "requests==2.32.5",
+]

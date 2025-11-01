@@ -1,0 +1,20 @@
+{
+  "download_jobs": [
+    {
+      "job_name": "範例影片一號 (例如：風景)",
+      "server_url": "https://video.example.com/stream_host_1",
+      "playlist_url": "https://api.example.com/playlists/video_1.json",
+      "video_stream_index": 0,
+      "audio_stream_index": 0,
+      "final_output_file": "output_video_1.mp4"
+    },
+    {
+      "job_name": "範例影片二號 (例如：演講)",
+      "server_url": "https://data.example.org/stream_host_2",
+      "playlist_url": "https://api.example.org/data/video_2.json",
+      "video_stream_index": 0,
+      "audio_stream_index": 0,
+      "final_output_file": "output_video_2.mp4"
+    }
+  ]
+}

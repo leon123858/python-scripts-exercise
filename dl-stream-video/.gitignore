@@ -1,0 +1,5 @@
+*.json
+*.m4a
+*.mp4
+.venv
+.idea
