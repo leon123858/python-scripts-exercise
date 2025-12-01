@@ -1,0 +1,13 @@
+[project]
+name = "quant"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.7",
+    "notebook>=7.5.0",
+    "numpy>=2.3.5",
+    "scipy>=1.16.3",
+    "scipy-stubs==1.16.3.2",
+    "sympy>=1.14.0",
+]
