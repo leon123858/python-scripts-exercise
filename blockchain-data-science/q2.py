@@ -1,5 +1,17 @@
 import pandas as pd
 
+# SELECT
+#   block_timestamp AS block_time,
+#   topics[SAFE_OFFSET(1)] AS topic1,
+#   topics[SAFE_OFFSET(2)] AS topic2,
+#   topics[SAFE_OFFSET(3)] AS topic3,
+#   transaction_hash AS tx_hash
+# FROM
+#   `bigquery-public-data.crypto_ethereum.logs`
+# WHERE
+#   address = LOWER('0x1F98431c8aD98523631AE4a59f267346ea31F984')
+#   AND topics[SAFE_OFFSET(0)] = LOWER('0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118')
+#   AND (DATE(block_timestamp) >= '2025-11-1' AND DATE(block_timestamp) < '2025-12-1')
 
 def process_ethereum_logs(file_path):
     # 1. 定義欄位名稱
