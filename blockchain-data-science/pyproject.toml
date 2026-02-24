@@ -6,6 +6,8 @@ requires-python = ">=3.13"
 dependencies = [
     "ipykernel>=7.1.0",
     "matplotlib==3.10.8",
+    "networkx==3.6.1",
     "pandas==3.0.0rc0",
     "pandas-stubs~=3.0.0rc0",
+    "scipy>=1.17.1",
 ]
