@@ -38,3 +38,76 @@ Use `make` targets instead of ad hoc scripts.
 - User strategies should live outside `src/stock`, usually in `src/workspace`, and should inherit `stock.BaseStrategy`.
 - Mark tests touching real `twstock` network calls with `@pytest.mark.integration`.
 - Keep generated caches such as `.venv`, `.pytest_cache`, `.mypy_cache`, and `__pycache__` out of source control.
+
+## Strategy Backtest Workflow For Agents
+
+The normal user flow is: the user describes a trading strategy in natural language, then the agent implements that strategy in this framework and backtests it against requested Taiwan stock IDs.
+
+When handling a strategy request:
+
+- Read the existing framework before editing:
+  - Strategy examples: `src/workspace/strategies.py`.
+  - Strategy interface: `src/stock/core.py`.
+  - Signal helpers and sizing: `src/stock/signals.py`.
+  - Backtest behavior: `src/stock/backtest.py`.
+  - CLI runner: `src/stock/cli.py` and `src/stock/runner.py`.
+- Implement user strategies in `src/workspace/strategies.py` unless the user asks for a different organization.
+- Add or update focused tests under `tests/`, preferably avoiding live network calls by injecting small DataFrames into `run_strategy`.
+- Run `make test-local` for ordinary strategy changes. Run `make check` before considering framework-level changes complete.
+- If the user asks for concrete stock backtests, run the CLI and write reports under `reports/`.
+
+Strategy classes should inherit `BaseStrategy`:
+
+```python
+from stock import BaseStrategy
+from stock.signals import SizeType, buy, sell
+
+
+class MyStrategy(BaseStrategy):
+    name = "my_strategy"
+
+    def prepare(self, context):
+        data = context.data.copy()
+        # Add indicators or pattern columns here.
+        return data
+
+    def generate_signals(self, context):
+        data = context.prepared_data
+        if data is None:
+            return []
+        return [
+            buy(
+                "2024-01-02",
+                reason="example entry",
+                size_type=SizeType.CASH_PERCENT,
+                size_value=0.5,
+            ),
+            sell("2024-01-03", reason="example exit", size_type=SizeType.ALL),
+        ]
+```
+
+Signals support position sizing. Use the sizing model instead of hard-coding all-in behavior inside strategies:
+
+- `SizeType.ALL`: buy with all cash or sell the whole position.
+- `SizeType.CASH_PERCENT`: buy using a percentage of current cash, where `size_value=0.5` means 50%.
+- `SizeType.CASH_AMOUNT`: buy or sell approximately a fixed cash amount.
+- `SizeType.SHARES`: buy or sell a fixed number of shares.
+- `SizeType.POSITION_PERCENT`: sell a percentage of the current position.
+
+Backtests use daily close prices. On BUY signals the engine calculates affordable shares from current cash, price, and commission. On SELL signals it calculates shares from the current position. Trade reports include `gross`, `fee`, `tax`, `cash`, `size_type`, and `size_value`.
+
+Useful CLI commands:
+
+```powershell
+uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 2330
+uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 2330 --output reports/my_strategy_2330.csv
+uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 8299 --output reports/my_strategy_8299.csv
+```
+
+When reporting results to the user, include:
+
+- Strategy class name and where it was implemented.
+- Key assumptions or parameter defaults chosen from the user's description.
+- Test command results.
+- Backtest stock ID, date range, final equity, total return, trade count, and win rate.
+- Paths to generated summary/trades/equity CSV files when reports were written.
