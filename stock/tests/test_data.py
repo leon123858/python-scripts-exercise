@@ -1,5 +1,6 @@
 import datetime as dt
 
+import pandas as pd
 import pytest
 
 from stock.data import get_stock_data
@@ -43,7 +44,7 @@ def test_get_stock_data_fetches_recent_data_by_default():
     assert stocks[0].fetch_31_called is True
     assert df.shape == (2, 10)
     assert df["price"].tolist() == [10.0, 12.0]
-    assert list(df.index) == stocks[0].date
+    assert list(df.index) == list(pd.to_datetime(stocks[0].date))
 
 
 def test_get_stock_data_fetches_from_year_and_month():

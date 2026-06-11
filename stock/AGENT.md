@@ -11,7 +11,7 @@ This project is a Python stock-analysis exercise that uses `uv` for environment 
 - Source code: `src/stock/`.
 - Tests: `tests/`.
 
-The code fetches Taiwan stock data through `twstock`, converts it into `pandas.DataFrame` objects, applies event/line strategies, calculates simple revenue ratios, and draws charts with `matplotlib` / `mplfinance`.
+The code fetches Taiwan stock data through `twstock`, caches it as CSV, lets users write strategies in `src/workspace/`, generates signals, runs daily backtests, and returns report DataFrames/CSV.
 
 ## Common Commands
 
@@ -35,5 +35,6 @@ Use `make` targets instead of ad hoc scripts.
 - Prefer `uv run ...` for Python commands so tools use the project environment.
 - Do not add separate shell or PowerShell helper scripts for routine commands; put common workflows in `Makefile`.
 - Keep import paths rooted at the installed package name, `stock`, not at raw folders under `src`.
+- User strategies should live outside `src/stock`, usually in `src/workspace`, and should inherit `stock.BaseStrategy`.
 - Mark tests touching real `twstock` network calls with `@pytest.mark.integration`.
 - Keep generated caches such as `.venv`, `.pytest_cache`, `.mypy_cache`, and `__pycache__` out of source control.
