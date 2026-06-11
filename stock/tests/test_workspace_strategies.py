@@ -3,7 +3,7 @@ import pytest
 
 from stock.core import StrategyContext
 from stock.runner import run_strategy
-from workspace.strategies import ThreeSoldiersStrategy
+from workspace.strategies import MaTrendStrategy, ThreeSoldiersStrategy
 
 
 def three_soldiers_data() -> pd.DataFrame:
@@ -25,6 +25,42 @@ def three_soldiers_data() -> pd.DataFrame:
             "close": [12.0, 13.0, 14.0, 13.0, 12.0, 11.0],
         }
     )
+
+
+def ma_trend_data() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                [
+                    "2024-01-01",
+                    "2024-01-02",
+                    "2024-01-03",
+                    "2024-01-04",
+                    "2024-01-05",
+                    "2024-01-06",
+                ]
+            ),
+            "open": [10.0, 9.0, 11.0, 12.0, 9.0, 8.0],
+            "high": [10.5, 9.5, 11.5, 12.5, 9.5, 8.5],
+            "low": [9.5, 8.5, 10.5, 11.5, 8.5, 7.5],
+            "close": [10.0, 9.0, 11.0, 12.0, 9.0, 8.0],
+        }
+    )
+
+
+def test_ma_trend_strategy_generates_cross_signals():
+    data = ma_trend_data()
+    context = StrategyContext(stock_id="2330", data=data, params={"window": 2})
+    strategy = MaTrendStrategy()
+
+    context.prepared_data = strategy.prepare(context)
+    signals = strategy.generate_signals(context)
+
+    assert [signal.type.value for signal in signals] == ["BUY", "SELL"]
+    assert [signal.date for signal in signals] == [
+        pd.Timestamp("2024-01-03"),
+        pd.Timestamp("2024-01-05"),
+    ]
 
 
 def test_three_soldiers_strategy_generates_buy_and_sell_signals():

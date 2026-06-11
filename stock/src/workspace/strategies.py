@@ -24,6 +24,48 @@ class RsiReversalStrategy(BaseStrategy):
         return signals
 
 
+class MaTrendStrategy(BaseStrategy):
+    name = "ma_trend"
+
+    def prepare(self, context):
+        data = context.data.copy()
+        window = int(context.params.get("window", 20))
+        data["ma"] = moving_average(data["close"], window=window)
+        return data
+
+    def generate_signals(self, context):
+        data = context.prepared_data
+        if data is None:
+            return []
+
+        signals = []
+        holding = False
+        previous_close_above_ma = None
+        for row in data.itertuples(index=False):
+            if row.ma != row.ma:
+                continue
+
+            close_above_ma = row.close > row.ma
+            if previous_close_above_ma is None:
+                previous_close_above_ma = close_above_ma
+                continue
+
+            if not holding and close_above_ma and not previous_close_above_ma:
+                signals.append(
+                    buy(row.date, reason="close crossed above moving average")
+                )
+                holding = True
+            elif holding and not close_above_ma and previous_close_above_ma:
+                signals.append(
+                    sell(row.date, reason="close crossed below moving average")
+                )
+                holding = False
+
+            previous_close_above_ma = close_above_ma
+
+        return signals
+
+
 class TaiwanOperationStrategy(BaseStrategy):
     name = "taiwan_operation"
 
