@@ -148,6 +148,10 @@ def test_daily_backtest_buys_sells_and_summarizes():
         stock_id="2330",
         strategy_name="sample",
         initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+        execution_delay_days=0,
+        execution_price="close",
     )
 
     assert result.trades["type"].tolist() == ["BUY", "SELL"]
@@ -163,6 +167,10 @@ def test_daily_backtest_handles_no_signals():
         stock_id="2330",
         strategy_name="empty",
         initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+        execution_delay_days=0,
+        execution_price="close",
     )
 
     assert result.trades.empty
@@ -189,12 +197,75 @@ def test_daily_backtest_respects_signal_sizing():
         stock_id="2330",
         strategy_name="sample",
         initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+        execution_delay_days=0,
+        execution_price="close",
     )
 
     assert result.trades["type"].tolist() == ["BUY", "SELL"]
     assert result.trades["shares"].tolist() == [50, 25]
     assert result.equity_curve["shares"].tolist() == [50, 25, 25]
     assert result.summary.loc[0, "final_equity"] == pytest.approx(1150.0)
+
+
+def test_daily_backtest_defaults_to_next_open_execution():
+    result = run_daily_backtest(
+        sample_data(),
+        normalize_signals([buy("2024-01-01"), sell("2024-01-02")]),
+        stock_id="2330",
+        strategy_name="sample",
+        initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+    )
+
+    assert result.trades["signal_date"].tolist() == [
+        pd.Timestamp("2024-01-01"),
+        pd.Timestamp("2024-01-02"),
+    ]
+    assert result.trades["date"].tolist() == [
+        pd.Timestamp("2024-01-02"),
+        pd.Timestamp("2024-01-03"),
+    ]
+    assert result.trades["price"].tolist() == [11.0, 12.0]
+    assert result.summary.loc[0, "final_equity"] == pytest.approx(1090.0)
+    assert result.summary.loc[0, "execution_delay_days"] == 1
+    assert result.summary.loc[0, "execution_price"] == "open"
+
+
+def test_daily_backtest_drops_signals_without_future_execution_date():
+    result = run_daily_backtest(
+        sample_data(),
+        normalize_signals([buy("2024-01-03")]),
+        stock_id="2330",
+        strategy_name="sample",
+        initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+    )
+
+    assert result.trades.empty
+    assert result.summary.loc[0, "final_equity"] == pytest.approx(1000.0)
+
+
+def test_daily_backtest_applies_costs_and_lot_size():
+    result = run_daily_backtest(
+        sample_data(),
+        normalize_signals([buy("2024-01-01"), sell("2024-01-02")]),
+        stock_id="2330",
+        strategy_name="sample",
+        initial_cash=1000.0,
+        commission_rate=0.01,
+        tax_rate=0.02,
+        lot_size=10,
+    )
+
+    assert result.trades["shares"].tolist() == [90, 90]
+    assert result.trades["fee"].tolist() == pytest.approx([9.9, 10.8])
+    assert result.trades["tax"].tolist() == pytest.approx([0.0, 21.6])
+    assert result.summary.loc[0, "final_equity"] == pytest.approx(1047.7)
+    assert result.summary.loc[0, "lot_size"] == 10
 
 
 def test_load_workspace_strategy():
@@ -207,7 +278,14 @@ def test_runner_executes_strategy_with_injected_data():
     strategy_path = f"{__name__}:BuyAndHoldStrategy"
 
     result = run_strategy(
-        strategy_path, "2330", data=sample_data(), initial_cash=1000.0
+        strategy_path,
+        "2330",
+        data=sample_data(),
+        initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+        execution_delay_days=0,
+        execution_price="close",
     )
 
     assert result.signals["type"].tolist() == ["BUY", "SELL"]

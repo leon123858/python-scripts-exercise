@@ -67,6 +67,10 @@ def test_three_soldiers_strategy_runs_through_backtest():
         "2330",
         data=three_soldiers_data(),
         initial_cash=1000.0,
+        commission_rate=0.0,
+        tax_rate=0.0,
+        execution_delay_days=0,
+        execution_price="close",
     )
 
     assert result.signals["type"].tolist() == ["BUY", "SELL"]

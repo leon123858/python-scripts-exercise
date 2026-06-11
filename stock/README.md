@@ -32,6 +32,13 @@ uv run stock run --strategy workspace.strategies:RsiReversalStrategy --stock-id 
 uv run stock run --strategy workspace.strategies:RsiReversalStrategy --stock-id 2330 --output reports/rsi_2330.csv
 ```
 
+Backtests default to executing signals on the next trading day's open with
+Taiwan stock transaction cost defaults:
+
+```powershell
+uv run stock run --strategy workspace.strategies:RsiReversalStrategy --stock-id 2330 --commission-rate 0.001425 --tax-rate 0.003 --execution-delay-days 1 --execution-price open
+```
+
 Cache stock data explicitly:
 
 ```powershell

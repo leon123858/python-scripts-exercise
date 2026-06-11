@@ -1,8 +1,11 @@
 from dataclasses import dataclass
+from typing import Literal
 
 import pandas as pd
 
 from stock.signals import SignalType, SizeType, normalize_signals
+
+ExecutionPrice = Literal["open", "high", "low", "close", "price"]
 
 
 @dataclass
@@ -30,6 +33,7 @@ def _buy_quantity(
     size_type: SizeType,
     size_value: float | None,
     commission_rate: float,
+    lot_size: int,
 ) -> int:
     if cash <= 0:
         return 0
@@ -41,11 +45,13 @@ def _buy_quantity(
     elif size_type == SizeType.SHARES:
         requested = int(_positive_value(size_value))
         affordable = int(cash // (price * (1 + commission_rate)))
-        return min(requested, affordable)
+        quantity = min(requested, affordable)
+        return quantity - quantity % lot_size
     else:
         budget = cash
 
-    return int(budget // (price * (1 + commission_rate)))
+    quantity = int(budget // (price * (1 + commission_rate)))
+    return quantity - quantity % lot_size
 
 
 def _sell_quantity(
@@ -53,18 +59,50 @@ def _sell_quantity(
     price: float,
     size_type: SizeType,
     size_value: float | None,
+    lot_size: int,
 ) -> int:
     if shares <= 0:
         return 0
 
     if size_type == SizeType.POSITION_PERCENT:
-        return min(int(shares * _clamp_ratio(size_value)), shares)
-    if size_type == SizeType.CASH_AMOUNT:
+        quantity = min(int(shares * _clamp_ratio(size_value)), shares)
+    elif size_type == SizeType.CASH_AMOUNT:
         target = _positive_value(size_value)
-        return min(int(target // price), shares)
-    if size_type == SizeType.SHARES:
-        return min(int(_positive_value(size_value)), shares)
-    return shares
+        quantity = min(int(target // price), shares)
+    elif size_type == SizeType.SHARES:
+        quantity = min(int(_positive_value(size_value)), shares)
+    else:
+        quantity = shares
+
+    if quantity == shares:
+        return quantity
+    return quantity - quantity % lot_size
+
+
+def _scheduled_signals(
+    market_dates: pd.Series,
+    signals: pd.DataFrame,
+    execution_delay_days: int,
+) -> dict[pd.Timestamp, list[pd.Series]]:
+    if execution_delay_days < 0:
+        raise ValueError("execution_delay_days should be greater than or equal to 0")
+
+    scheduled: dict[pd.Timestamp, list[pd.Series]] = {}
+    if signals.empty:
+        return scheduled
+
+    dates = pd.to_datetime(market_dates).reset_index(drop=True)
+    for _, signal in signals.iterrows():
+        signal_date = pd.Timestamp(signal["date"])
+        candidates = dates[dates >= signal_date]
+        if candidates.empty:
+            continue
+        signal_index = int(candidates.index[0]) + execution_delay_days
+        if signal_index >= len(dates):
+            continue
+        execution_date = pd.Timestamp(dates.iloc[signal_index])
+        scheduled.setdefault(execution_date, []).append(signal)
+    return scheduled
 
 
 def run_daily_backtest(
@@ -73,13 +111,21 @@ def run_daily_backtest(
     stock_id: str,
     strategy_name: str,
     initial_cash: float = 1_000_000.0,
-    commission_rate: float = 0.0,
-    tax_rate: float = 0.0,
+    commission_rate: float = 0.001425,
+    tax_rate: float = 0.003,
+    execution_delay_days: int = 1,
+    execution_price: ExecutionPrice = "open",
+    lot_size: int = 1,
 ) -> BacktestResult:
+    if lot_size < 1:
+        raise ValueError("lot_size should be greater than or equal to 1")
+
     normalized_signals = normalize_signals(signals)
     market = data.copy()
     market["date"] = pd.to_datetime(market["date"])
     market = market.sort_values("date").reset_index(drop=True)
+    if execution_price not in market.columns:
+        raise ValueError(f"execution_price column not found: {execution_price}")
 
     cash = initial_cash
     shares = 0
@@ -88,27 +134,34 @@ def run_daily_backtest(
     trades: list[dict[str, object]] = []
     equity_rows: list[dict[str, object]] = []
 
-    signals_by_date = {
-        date_value: group
-        for date_value, group in normalized_signals.groupby(normalized_signals["date"])
-    }
+    signals_by_date = _scheduled_signals(
+        market["date"],
+        normalized_signals,
+        execution_delay_days,
+    )
 
     for _, row in market.iterrows():
         current_date = pd.Timestamp(row["date"])
-        price = float(row["close"])
+        mark_price = float(row["close"])
+        execution_price_value = float(row[execution_price])
         day_signals = signals_by_date.get(current_date)
 
         if day_signals is not None:
-            for _, signal in day_signals.iterrows():
+            for signal in day_signals:
                 signal_type = SignalType(signal["type"])
                 size_type = SizeType(signal["size_type"])
                 size_value = signal["size_value"]
                 if signal_type == SignalType.BUY:
                     quantity = _buy_quantity(
-                        cash, price, size_type, size_value, commission_rate
+                        cash,
+                        execution_price_value,
+                        size_type,
+                        size_value,
+                        commission_rate,
+                        lot_size,
                     )
                     if quantity > 0:
-                        gross = quantity * price
+                        gross = quantity * execution_price_value
                         fee = gross * commission_rate
                         previous_position_cost = shares * entry_price
                         cash -= gross + fee
@@ -117,8 +170,9 @@ def run_daily_backtest(
                         trades.append(
                             {
                                 "date": current_date,
+                                "signal_date": signal["date"],
                                 "type": SignalType.BUY.value,
-                                "price": price,
+                                "price": execution_price_value,
                                 "shares": quantity,
                                 "gross": gross,
                                 "fee": fee,
@@ -130,19 +184,28 @@ def run_daily_backtest(
                             }
                         )
                 elif signal_type == SignalType.SELL and shares > 0:
-                    quantity = _sell_quantity(shares, price, size_type, size_value)
+                    quantity = _sell_quantity(
+                        shares,
+                        execution_price_value,
+                        size_type,
+                        size_value,
+                        lot_size,
+                    )
                     if quantity <= 0:
                         continue
-                    gross = quantity * price
+                    gross = quantity * execution_price_value
                     fee = gross * commission_rate
                     tax = gross * tax_rate
                     cash += gross - fee - tax
-                    closed_returns.append((price - entry_price) / entry_price)
+                    closed_returns.append(
+                        (execution_price_value - entry_price) / entry_price
+                    )
                     trades.append(
                         {
                             "date": current_date,
+                            "signal_date": signal["date"],
                             "type": SignalType.SELL.value,
-                            "price": price,
+                            "price": execution_price_value,
                             "shares": quantity,
                             "gross": gross,
                             "fee": fee,
@@ -162,8 +225,8 @@ def run_daily_backtest(
                 "date": current_date,
                 "cash": cash,
                 "shares": shares,
-                "close": price,
-                "equity": cash + shares * price,
+                "close": mark_price,
+                "equity": cash + shares * mark_price,
             }
         )
 
@@ -172,6 +235,7 @@ def run_daily_backtest(
         trades,
         columns=[
             "date",
+            "signal_date",
             "type",
             "price",
             "shares",
@@ -207,6 +271,11 @@ def run_daily_backtest(
                 "total_return": (final_equity - initial_cash) / initial_cash,
                 "trade_count": len(trades_df),
                 "win_rate": win_rate,
+                "commission_rate": commission_rate,
+                "tax_rate": tax_rate,
+                "execution_delay_days": execution_delay_days,
+                "execution_price": execution_price,
+                "lot_size": lot_size,
             }
         ]
     )

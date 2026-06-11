@@ -94,7 +94,14 @@ Signals support position sizing. Use the sizing model instead of hard-coding all
 - `SizeType.SHARES`: buy or sell a fixed number of shares.
 - `SizeType.POSITION_PERCENT`: sell a percentage of the current position.
 
-Backtests use daily close prices. On BUY signals the engine calculates affordable shares from current cash, price, and commission. On SELL signals it calculates shares from the current position. Trade reports include `gross`, `fee`, `tax`, `cash`, `size_type`, and `size_value`.
+Backtests default to a more conservative daily execution model: signals execute
+on the next trading day's open (`execution_delay_days=1`,
+`execution_price="open"`). The old same-day close behavior is still available
+with `execution_delay_days=0` and `execution_price="close"`. On BUY signals the
+engine calculates affordable shares from current cash, price, commission, and
+`lot_size`. On SELL signals it calculates shares from the current position.
+Trade reports include `date`, `signal_date`, `gross`, `fee`, `tax`, `cash`,
+`size_type`, and `size_value`.
 
 Useful CLI commands:
 
@@ -102,6 +109,7 @@ Useful CLI commands:
 uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 2330
 uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 2330 --output reports/my_strategy_2330.csv
 uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 8299 --output reports/my_strategy_8299.csv
+uv run stock run --strategy workspace.strategies:MyStrategy --stock-id 2330 --execution-delay-days 0 --execution-price close --commission-rate 0 --tax-rate 0
 ```
 
 When reporting results to the user, include:

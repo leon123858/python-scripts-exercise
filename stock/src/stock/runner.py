@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 
-from stock.backtest import BacktestResult, run_daily_backtest
+from stock.backtest import BacktestResult, ExecutionPrice, run_daily_backtest
 from stock.core import BaseStrategy, StrategyContext
 from stock.data import get_stock_data_cached
 from stock.signals import normalize_signals
@@ -35,8 +35,11 @@ def run_strategy(
     start_month: int | None = None,
     params: dict[str, object] | None = None,
     initial_cash: float = 1_000_000.0,
-    commission_rate: float = 0.0,
-    tax_rate: float = 0.0,
+    commission_rate: float = 0.001425,
+    tax_rate: float = 0.003,
+    execution_delay_days: int = 1,
+    execution_price: ExecutionPrice = "open",
+    lot_size: int = 1,
     data: pd.DataFrame | None = None,
     data_kwargs: dict[str, Any] | None = None,
 ) -> AnalysisResult:
@@ -66,5 +69,8 @@ def run_strategy(
         initial_cash=initial_cash,
         commission_rate=commission_rate,
         tax_rate=tax_rate,
+        execution_delay_days=execution_delay_days,
+        execution_price=execution_price,
+        lot_size=lot_size,
     )
     return AnalysisResult(context=context, signals=signals, backtest=backtest)
