@@ -9,7 +9,7 @@ from stock.core import StrategyContext
 from stock.data import get_stock_data_cached, normalize_price_data
 from stock.indicators import moving_average, returns, rsi
 from stock.runner import load_strategy, run_strategy
-from stock.signals import buy, normalize_signals, sell
+from stock.signals import SizeType, buy, normalize_signals, sell
 
 
 class BuyAndHoldStrategy(BaseStrategy):
@@ -123,9 +123,20 @@ def test_indicators_are_stable_for_known_data():
 
 
 def test_signals_normalize_list_and_validate_dataframe():
-    signals = normalize_signals([buy("2024-01-02"), sell("2024-01-03")])
+    signals = normalize_signals(
+        [
+            buy(
+                "2024-01-02",
+                size_type=SizeType.CASH_PERCENT,
+                size_value=0.5,
+            ),
+            sell("2024-01-03"),
+        ]
+    )
 
     assert signals["type"].tolist() == ["BUY", "SELL"]
+    assert signals["size_type"].tolist() == ["CASH_PERCENT", "ALL"]
+    assert signals["size_value"].iloc[0] == pytest.approx(0.5)
     with pytest.raises(ValueError, match="signal data missing columns"):
         normalize_signals(pd.DataFrame({"date": ["2024-01-01"]}))
 
@@ -156,6 +167,34 @@ def test_daily_backtest_handles_no_signals():
 
     assert result.trades.empty
     assert result.summary.loc[0, "final_equity"] == pytest.approx(1000.0)
+
+
+def test_daily_backtest_respects_signal_sizing():
+    result = run_daily_backtest(
+        sample_data(),
+        normalize_signals(
+            [
+                buy(
+                    "2024-01-01",
+                    size_type=SizeType.CASH_PERCENT,
+                    size_value=0.5,
+                ),
+                sell(
+                    "2024-01-02",
+                    size_type=SizeType.POSITION_PERCENT,
+                    size_value=0.5,
+                ),
+            ]
+        ),
+        stock_id="2330",
+        strategy_name="sample",
+        initial_cash=1000.0,
+    )
+
+    assert result.trades["type"].tolist() == ["BUY", "SELL"]
+    assert result.trades["shares"].tolist() == [50, 25]
+    assert result.equity_curve["shares"].tolist() == [50, 25, 25]
+    assert result.summary.loc[0, "final_equity"] == pytest.approx(1150.0)
 
 
 def test_load_workspace_strategy():

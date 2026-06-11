@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from stock.signals import SignalType, normalize_signals
+from stock.signals import SignalType, SizeType, normalize_signals
 
 
 @dataclass
@@ -10,6 +10,61 @@ class BacktestResult:
     trades: pd.DataFrame
     equity_curve: pd.DataFrame
     summary: pd.DataFrame
+
+
+def _clamp_ratio(value: float | None) -> float:
+    if value is None or pd.isna(value):
+        return 1.0
+    return min(max(float(value), 0.0), 1.0)
+
+
+def _positive_value(value: float | None) -> float:
+    if value is None or pd.isna(value):
+        return 0.0
+    return max(float(value), 0.0)
+
+
+def _buy_quantity(
+    cash: float,
+    price: float,
+    size_type: SizeType,
+    size_value: float | None,
+    commission_rate: float,
+) -> int:
+    if cash <= 0:
+        return 0
+
+    if size_type == SizeType.CASH_PERCENT:
+        budget = cash * _clamp_ratio(size_value)
+    elif size_type == SizeType.CASH_AMOUNT:
+        budget = min(cash, _positive_value(size_value))
+    elif size_type == SizeType.SHARES:
+        requested = int(_positive_value(size_value))
+        affordable = int(cash // (price * (1 + commission_rate)))
+        return min(requested, affordable)
+    else:
+        budget = cash
+
+    return int(budget // (price * (1 + commission_rate)))
+
+
+def _sell_quantity(
+    shares: int,
+    price: float,
+    size_type: SizeType,
+    size_value: float | None,
+) -> int:
+    if shares <= 0:
+        return 0
+
+    if size_type == SizeType.POSITION_PERCENT:
+        return min(int(shares * _clamp_ratio(size_value)), shares)
+    if size_type == SizeType.CASH_AMOUNT:
+        target = _positive_value(size_value)
+        return min(int(target // price), shares)
+    if size_type == SizeType.SHARES:
+        return min(int(_positive_value(size_value)), shares)
+    return shares
 
 
 def run_daily_backtest(
@@ -46,26 +101,39 @@ def run_daily_backtest(
         if day_signals is not None:
             for _, signal in day_signals.iterrows():
                 signal_type = SignalType(signal["type"])
-                if signal_type == SignalType.BUY and shares == 0 and cash > 0:
-                    quantity = int(cash // price)
+                size_type = SizeType(signal["size_type"])
+                size_value = signal["size_value"]
+                if signal_type == SignalType.BUY:
+                    quantity = _buy_quantity(
+                        cash, price, size_type, size_value, commission_rate
+                    )
                     if quantity > 0:
                         gross = quantity * price
                         fee = gross * commission_rate
+                        previous_position_cost = shares * entry_price
                         cash -= gross + fee
                         shares += quantity
-                        entry_price = price
+                        entry_price = (previous_position_cost + gross + fee) / shares
                         trades.append(
                             {
                                 "date": current_date,
                                 "type": SignalType.BUY.value,
                                 "price": price,
                                 "shares": quantity,
+                                "gross": gross,
+                                "fee": fee,
+                                "tax": 0.0,
                                 "cash": cash,
                                 "reason": signal["reason"],
+                                "size_type": size_type.value,
+                                "size_value": size_value,
                             }
                         )
                 elif signal_type == SignalType.SELL and shares > 0:
-                    gross = shares * price
+                    quantity = _sell_quantity(shares, price, size_type, size_value)
+                    if quantity <= 0:
+                        continue
+                    gross = quantity * price
                     fee = gross * commission_rate
                     tax = gross * tax_rate
                     cash += gross - fee - tax
@@ -75,13 +143,19 @@ def run_daily_backtest(
                             "date": current_date,
                             "type": SignalType.SELL.value,
                             "price": price,
-                            "shares": shares,
+                            "shares": quantity,
+                            "gross": gross,
+                            "fee": fee,
+                            "tax": tax,
                             "cash": cash,
                             "reason": signal["reason"],
+                            "size_type": size_type.value,
+                            "size_value": size_value,
                         }
                     )
-                    shares = 0
-                    entry_price = 0.0
+                    shares -= quantity
+                    if shares == 0:
+                        entry_price = 0.0
 
         equity_rows.append(
             {
@@ -95,7 +169,20 @@ def run_daily_backtest(
 
     equity_curve = pd.DataFrame(equity_rows)
     trades_df = pd.DataFrame(
-        trades, columns=["date", "type", "price", "shares", "cash", "reason"]
+        trades,
+        columns=[
+            "date",
+            "type",
+            "price",
+            "shares",
+            "gross",
+            "fee",
+            "tax",
+            "cash",
+            "reason",
+            "size_type",
+            "size_value",
+        ],
     )
     final_equity = (
         float(equity_curve["equity"].iloc[-1])

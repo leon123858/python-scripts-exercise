@@ -1,6 +1,6 @@
 from stock import BaseStrategy
 from stock.indicators import moving_average, returns, rsi
-from stock.signals import buy, sell
+from stock.signals import SizeType, buy, sell
 
 
 class RsiReversalStrategy(BaseStrategy):
@@ -59,4 +59,107 @@ class TaiwanOperationStrategy(BaseStrategy):
                 signals.append(sell(row.date, reason="close < ma20 or rsi14 < 45"))
                 holding = False
 
+        return signals
+
+
+class ThreeSoldiersStrategy(BaseStrategy):
+    name = "three_soldiers"
+
+    def prepare(self, context):
+        data = context.data.copy()
+        min_run_days = int(context.params.get("min_run_days", 3))
+        trigger_ratio = float(context.params.get("trigger_ratio", 0.5))
+
+        data["red_three_soldiers"] = False
+        data["black_three_soldiers"] = False
+        data["red_three_soldiers_strength"] = 0.0
+
+        if len(data) < min_run_days:
+            return data
+
+        close_values = data["close"].astype(float).tolist()
+        current_direction = 0
+        run_start_index = 0
+        run_length = 1
+        first_leg_ratio = 0.0
+
+        for index in range(1, len(data)):
+            previous_close = close_values[index - 1]
+            current_close = close_values[index]
+            if current_close == previous_close:
+                current_direction = 0
+                run_start_index = index
+                run_length = 1
+                first_leg_ratio = 0.0
+                continue
+
+            direction = 1 if current_close > previous_close else -1
+            if direction != current_direction:
+                current_direction = direction
+                run_start_index = index - 1
+                run_length = 2
+                first_leg_ratio = abs(current_close - previous_close) / previous_close
+            else:
+                run_length += 1
+
+            start_close = close_values[run_start_index]
+            cumulative_ratio = abs(current_close - start_close) / start_close
+            is_triggered = (
+                run_length >= min_run_days
+                and first_leg_ratio > 0
+                and cumulative_ratio >= first_leg_ratio * trigger_ratio
+            )
+            if not is_triggered:
+                continue
+
+            if direction > 0:
+                data.at[data.index[index], "red_three_soldiers"] = True
+                data.at[data.index[index], "red_three_soldiers_strength"] = min(
+                    cumulative_ratio,
+                    1.0,
+                )
+            else:
+                data.at[data.index[index], "black_three_soldiers"] = True
+
+            current_direction = 0
+            run_start_index = index
+            run_length = 1
+            first_leg_ratio = 0.0
+        return data
+
+    def generate_signals(self, context):
+        data = context.prepared_data
+        if data is None:
+            return []
+
+        signals = []
+        holding = False
+        base_cash_percent = float(context.params.get("base_cash_percent", 0.35))
+        max_cash_percent = float(context.params.get("max_cash_percent", 0.75))
+        for row in data.itertuples(index=False):
+            if row.red_three_soldiers and not holding:
+                strength = max(float(row.red_three_soldiers_strength), 0.0)
+                cash_percent = min(
+                    base_cash_percent
+                    + strength * (max_cash_percent - base_cash_percent),
+                    max_cash_percent,
+                )
+                signals.append(
+                    buy(
+                        row.date,
+                        reason="red three soldiers",
+                        size_type=SizeType.CASH_PERCENT,
+                        size_value=cash_percent,
+                    )
+                )
+                holding = True
+            elif row.black_three_soldiers and holding:
+                signals.append(
+                    sell(
+                        row.date,
+                        reason="black three soldiers",
+                        size_type=SizeType.ALL,
+                    )
+                )
+                holding = False
         return signals
