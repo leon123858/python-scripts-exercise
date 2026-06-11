@@ -1,31 +1,28 @@
-from pickle import FALSE
-
-from src.diagram.kLine import convert2k_line_diagram, draw_k_line
-from src.diagram.line import draw_rsi_line
-from src.events.events import get_event_line
-from src.events.lines import RSILine
-from src.tables.initDataFrame import get_stock_data
+import pandas as pd
 import pytest
 
-from src.utils.revenue import get_revenue_by_line_offset
-
-# SHOW_DIAGRAM = True
-SHOW_DIAGRAM = False
+from stock.diagram.k_line import convert_to_k_line_diagram, draw_k_line
 
 
-@pytest.mark.skipif(SHOW_DIAGRAM is False, reason="do not need to show disgram")
-def test_k_line():
-    data = get_stock_data("2330")
-    plt = draw_k_line(convert2k_line_diagram(data))
-    plt.show()
+def test_convert_to_k_line_diagram():
+    data = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2023-01-01", "2023-01-02"]),
+            "open": [10.0, 11.0],
+            "low": [9.0, 10.0],
+            "high": [12.0, 13.0],
+            "close": [11.0, 12.0],
+            "turnover": [1000, 2000],
+        }
+    )
+
+    result = convert_to_k_line_diagram(data)
+
+    assert list(result.columns) == ["date", "Open", "Low", "High", "Close", "Volume"]
+    assert list(result.index) == list(data["date"])
+    assert result["Volume"].tolist() == [1000, 2000]
 
 
-@pytest.mark.skipif(SHOW_DIAGRAM is False, reason="do not need to show disgram")
-def test_rsi_line():
-    data = get_stock_data("2330")
-    strategy = RSILine()
-    get_event_line(data, strategy, 14)
-    draw_rsi_line(data)
-
-    for i in range(1, 25):
-        print(get_revenue_by_line_offset(data, "rsi", i))
+def test_draw_k_line_requires_ohlcv_columns():
+    with pytest.raises(ValueError, match="miss table col"):
+        draw_k_line(pd.DataFrame({"Open": [10.0]}))

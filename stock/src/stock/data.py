@@ -1,23 +1,30 @@
+from collections.abc import Callable
+from typing import Any
+
 import pandas as pd
 import twstock
-from src.utils.tables import create_dataframe_from_lists
+
+from stock.utils.tables import create_dataframe_from_lists
+
+StockFactory = Callable[[str], Any]
 
 
-def get_stock_data(stock_id: str, start_year=None, start_month=None) -> pd.DataFrame:
-    """
-    獲取台股數據並返回 DataFrame
+def get_stock_data(
+    stock_id: str,
+    start_year: int | None = None,
+    start_month: int | None = None,
+    stock_factory: StockFactory = twstock.Stock,
+) -> pd.DataFrame:
+    """Fetch stock price data and return it as a DataFrame."""
+    if (start_year is None) != (start_month is None):
+        raise ValueError("should set year and month same time or not")
 
-    Parameters:
-    stock_id (str): 股票代碼 (例如: '2330')
-    """
-    stock = twstock.Stock(stock_id)
+    stock = stock_factory(stock_id)
 
     if start_year is not None and start_month is not None:
         stock.fetch_from(start_year, start_month)
-    elif start_year is None and start_month is None:
-        stock.fetch_31()
     else:
-        raise ValueError("should set year and month same time or not")
+        stock.fetch_31()
 
     df = create_dataframe_from_lists(
         stock.price,
@@ -43,6 +50,5 @@ def get_stock_data(stock_id: str, start_year=None, start_month=None) -> pd.DataF
             "turnover",
         ],
     )
-
-    df.index = stock.date
+    df.index = pd.Index(stock.date)
     return df

@@ -1,19 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "stock"
 version = "0.1.0"
-description = "Add your description here"
+description = "Taiwan stock data analysis exercises"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "black>=25.1.0",
-    "datetime>=5.5",
-    "flake8>=7.2.0",
-    "lxml>=5.4.0",
     "matplotlib>=3.10.3",
     "mplfinance>=0.12.10b0",
-    "mypy>=1.15.0",
     "numpy>=2.2.5",
     "pandas>=2.2.3",
-    "pytest>=8.3.5",
     "twstock>=1.4.0",
 ]
+
+[project.scripts]
+stock = "stock.cli:main"
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "flake8>=7.2.0",
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require live network access or external services",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.mypy]
+python_version = "3.13"
+explicit_package_bases = true
+follow_untyped_imports = true
