@@ -1,0 +1,11 @@
+[project]
+name = "unity-video-extract"
+version = "0.1.0"
+description = "Restore original videos from this game's XOR-obfuscated Unity bundles"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "lz4>=4.4.5",
+    "pycryptodome>=3.24.0",
+    "unitypy>=1.25.4",
+]

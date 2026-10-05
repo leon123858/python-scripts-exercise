@@ -1,0 +1,15 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local game assets and recovered media
+Game_Win_Data/
+extracted_videos/
+extracted_videos_with_audio/
